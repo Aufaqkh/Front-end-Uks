@@ -5,7 +5,7 @@
         <h2>Manajemen Stok Obat</h2>
         <p>Pantau ketersediaan dan kategori obat di UKS</p>
       </div>
-      <button class="btn-add-premium" @click="showModal = true">
+      <button v-if="userRole !== 'siswa'" class="btn-add-premium" @click="showModal = true">
         <span class="btn-icon">💊</span> Tambah Obat Baru
       </button>
     </div>
@@ -22,12 +22,12 @@
           </thead>
           <tbody>
             <tr v-if="loading">
-              <td colspan="4" style="text-align: center; padding: 30px; color: #64748b;">
+              <td colspan="3" style="text-align: center; padding: 30px; color: #64748b;">
                 Memuat data stok obat... ⏳
               </td>
             </tr>
             <tr v-else-if="obatList.length === 0">
-              <td colspan="4" style="text-align: center; padding: 30px; color: #64748b;">
+              <td colspan="3" style="text-align: center; padding: 30px; color: #64748b;">
                 Belum ada data obat di inventaris bray.
               </td>
             </tr>
@@ -47,15 +47,13 @@
                 </span>
               </td>
               <td><span class="badge-kategori">{{ obat.kategori }}</span></td>
-              <td>
-              </td>
             </tr>
           </tbody>
         </table>
       </div>
     </div>
 
-    <div v-if="showModal" class="modal-overlay-premium">
+    <div v-if="showModal && userRole !== 'siswa'" class="modal-overlay-premium">
       <div class="modal-content-premium">
         <div class="modal-header-premium">
           <div class="modal-title-group">
@@ -68,7 +66,7 @@
         <form @submit.prevent="saveObat" class="modal-form-premium">
           <div class="form-group-premium">
             <label>Nama Obat</label>
-            <input v-model="newObat.nama_obat" type="text" placeholder="Contoh: Amoxicillin 500mg" required>
+            <input v-model="newObat.nama" type="text" placeholder="Contoh: Amoxicillin 500mg" required>
           </div>
           
           <div class="form-group-premium">
@@ -107,14 +105,16 @@ const showModal = ref(false);
 const loading = ref(false);
 const submitting = ref(false);
 const obatList = ref([]);
+const userRole = ref(''); 
 
 const newObat = ref({
-  nama_obat: '',
+  nama: '',
   stok: null,
   kategori: 'Obat Demam / Pusing'
 });
 
 const fetchObat = async () => {
+  // 🔥 SEKARANG SISWA JUGA IKUT NARIK DATA DARI SINI 🔥
   loading.value = true;
   try {
     const token = localStorage.getItem('token') || localStorage.getItem('auth_token'); 
@@ -136,6 +136,10 @@ const fetchObat = async () => {
 };
 
 onMounted(() => {
+  const user = JSON.parse(localStorage.getItem('user'));
+  if (user) {
+    userRole.value = user.role;
+  }
   fetchObat();
 });
 
@@ -145,17 +149,17 @@ const saveObat = async () => {
     const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
 
     await api.post('/obats', {
-      nama_obat: newObat.value.nama_obat, 
+      nama: newObat.value.nama, 
       stok: newObat.value.stok,
       kategori: newObat.value.kategori
     }, {
       headers: { Authorization: `Bearer ${token}` } 
     });
 
-    alert(`Berhasil menyimpan obat: ${newObat.value.nama_obat} 🎉`);
+    alert(`Berhasil menyimpan obat: ${newObat.value.nama} 🎉`);
     
     showModal.value = false;
-    newObat.value = { nama_obat: '', stok: null, kategori: 'Obat Demam / Pusing' };
+    newObat.value = { nama: '', stok: null, kategori: 'Obat Demam / Pusing' };
     
     fetchObat(); 
 
@@ -169,7 +173,7 @@ const saveObat = async () => {
 </script>
 
 <style scoped>
-/* CSS LAMA MASIH SAMA */
+/* CSS TETEP AMAN GAK ADA YANG BERUBAH */
 .obat-container-premium { display: flex; flex-direction: column; gap: 25px; }
 .obat-header-premium { display: flex; justify-content: space-between; align-items: center; background: white; padding: 24px 30px; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.01); }
 .header-title-zone h2 { margin: 0; font-size: 24px; color: #0f172a; font-weight: 700; text-align: left; }
@@ -197,13 +201,6 @@ const saveObat = async () => {
 .badge-success { background: #dcfce7; color: #16a34a; }
 .badge-warning { background: #fef9c3; color: #ca8a04; }
 .badge-kategori { background: #f1f5f9; color: #475569; padding: 4px 10px; border-radius: 6px; font-weight: 600; font-size: 13px; }
-
-.action-buttons-premium { display: flex; gap: 8px; }
-.btn-action { border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s; }
-.btn-edit-premium { background: #eff6ff; color: #2563eb; }
-.btn-edit-premium:hover { background: #dbeafe; }
-.btn-delete-premium { background: #fff5f5; color: #e11d48; }
-.btn-delete-premium:hover { background: #ffe4e6; }
 
 .modal-overlay-premium { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(4px); display: flex; justify-content: center; align-items: center; z-index: 1000; }
 .modal-content-premium { background: white; width: 100%; max-width: 500px; padding: 30px; border-radius: 20px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); position: relative; box-sizing: border-box; }
