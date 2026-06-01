@@ -114,7 +114,6 @@ const newObat = ref({
 });
 
 const fetchObat = async () => {
-  // 🔥 SEKARANG SISWA JUGA IKUT NARIK DATA DARI SINI 🔥
   loading.value = true;
   try {
     const token = localStorage.getItem('token') || localStorage.getItem('auth_token'); 
@@ -148,8 +147,9 @@ const saveObat = async () => {
   try {
     const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
 
+    // 🔥 FIX: Mengubah key 'nama' menjadi 'nama_obat' sesuai dengan validasi Laravel bray 🔥
     await api.post('/obats', {
-      nama: newObat.value.nama, 
+      nama_obat: newObat.value.nama, 
       stok: newObat.value.stok,
       kategori: newObat.value.kategori
     }, {
@@ -165,7 +165,7 @@ const saveObat = async () => {
 
   } catch (error) {
     console.error(error);
-    alert('Gagal menyimpan obat! Periksa koneksi backend bre.');
+    alert(error.response?.data?.message || 'Gagal menyimpan obat! Pastikan kolom jumlah stok sudah terisi bray.');
   } finally {
     submitting.value = false;
   }
@@ -173,7 +173,6 @@ const saveObat = async () => {
 </script>
 
 <style scoped>
-/* CSS TETEP AMAN GAK ADA YANG BERUBAH */
 .obat-container-premium { display: flex; flex-direction: column; gap: 25px; }
 .obat-header-premium { display: flex; justify-content: space-between; align-items: center; background: white; padding: 24px 30px; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.01); }
 .header-title-zone h2 { margin: 0; font-size: 24px; color: #0f172a; font-weight: 700; text-align: left; }
