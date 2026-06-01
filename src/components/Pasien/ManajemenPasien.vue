@@ -1,11 +1,12 @@
 <template>
   <div class="pasien-container-premium">
+    
     <div class="pasien-header-premium">
       <div class="header-title-zone">
         <h2>Database Pasien UKS</h2>
         <p>Manajemen data master siswa dan guru yang terdaftar</p>
       </div>
-      <button class="btn-add-premium" @click="showModal = true">
+      <button v-if="userRole !== 'siswa'" class="btn-add-premium" @click="showModal = true">
         <span class="btn-icon">➕</span> Tambah Pasien Baru
       </button>
     </div>
@@ -19,47 +20,54 @@
               <th>Nama Lengkap</th>
               <th>Kelas & Jurusan</th>
               <th>No. HP Orang Tua</th>
-              <th class="text-center">Aksi</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-if="loading">
-              <td colspan="5" style="text-align: center; padding: 30px; color: #64748b;">
-                Memuat data pasien... ⏳
+            
+            <tr v-if="userRole === 'siswa'">
+              <td colspan="4" class="locked-data-cell">
+                <div class="lock-icon">🔒</div>
+                <h3>Data Diproteksi</h3>
+                <p>Data rekam medis disembunyikan untuk menjaga privasi pasien bre. Hanya petugas UKS yang memiliki wewenang untuk melihatnya.</p>
               </td>
             </tr>
-            <tr v-else-if="pasienList.length === 0">
-              <td colspan="5" style="text-align: center; padding: 30px; color: #64748b;">
-                Belum ada data pasien terdaftar bray.
-              </td>
-            </tr>
-            <tr v-else v-for="pasien in pasienList" :key="pasien.id">
-              <td class="td-nisn">{{ pasien.nisn }}</td>
-              <td class="td-nama">
-                <div class="avatar-sm">
-                  {{ pasien.nama_lengkap ? pasien.nama_lengkap.substring(0, 2).toUpperCase() : 'PS' }}
-                </div>
-                <strong>{{ pasien.nama_lengkap }}</strong>
-              </td>
-              <td>
-                <span class="badge-kelas">
-                  {{ pasien.kelas }}
-                </span>
-              </td>
-              <td class="td-hp">{{ pasien.no_hp || '-' }}</td>
-              <td>
-                <div class="action-buttons-premium">
-                  <button class="btn-action btn-edit-premium" title="Edit Data">✏️ Edit</button>
-                  <button class="btn-action btn-delete-premium" title="Hapus Data">🗑️ Hapus</button>
-                </div>
-              </td>
-            </tr>
+
+            <template v-else>
+              <tr v-if="loading">
+                <td colspan="5" style="text-align: center; padding: 30px; color: #64748b;">
+                  Memuat data pasien... ⏳
+                </td>
+              </tr>
+              <tr v-else-if="pasienList.length === 0">
+                <td colspan="5" style="text-align: center; padding: 30px; color: #64748b;">
+                  Belum ada data pasien terdaftar bray.
+                </td>
+              </tr>
+              <tr v-else v-for="pasien in pasienList" :key="pasien.id">
+                <td class="td-nisn">{{ pasien.nisn }}</td>
+                <td class="td-nama">
+                  <div class="avatar-sm">
+                    {{ pasien.nama_lengkap ? pasien.nama_lengkap.substring(0, 2).toUpperCase() : 'PS' }}
+                  </div>
+                  <strong>{{ pasien.nama_lengkap }}</strong>
+                </td>
+                <td>
+                  <span class="badge-kelas">
+                    {{ pasien.kelas }}
+                  </span>
+                </td>
+                <td class="td-hp">{{ pasien.no_hp || '-' }}</td>
+                <td>
+                </td>
+              </tr>
+            </template>
+
           </tbody>
         </table>
       </div>
     </div>
 
-    <div v-if="showModal" class="modal-overlay-premium">
+    <div v-if="showModal && userRole !== 'siswa'" class="modal-overlay-premium">
       <div class="modal-content-premium">
         <div class="modal-header-premium">
           <div class="modal-title-group">
@@ -107,14 +115,13 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-
-// 💡 INI DIA KUNCI JAWABANNYA BRE: Naik 2 lantai pakai ../../
 import api from '../../API/api.js'; 
 
 const showModal = ref(false);
 const loading = ref(false);
 const submitting = ref(false);
 const pasienList = ref([]); 
+const userRole = ref('');
 
 const newPasien = ref({
   nama_lengkap: '',
@@ -124,6 +131,9 @@ const newPasien = ref({
 });
 
 const fetchPasien = async () => {
+  // Kalau Siswa, gausah narik data biar gak kena error 403
+  if (userRole.value === 'siswa') return;
+
   loading.value = true;
   try {
     const response = await api.get('/pasien');
@@ -136,6 +146,10 @@ const fetchPasien = async () => {
 };
 
 onMounted(() => {
+  const user = JSON.parse(localStorage.getItem('user'));
+  if (user) {
+    userRole.value = user.role;
+  }
   fetchPasien();
 });
 
@@ -150,11 +164,9 @@ const savePasien = async () => {
     });
 
     alert(`Berhasil menambah pasien: ${newPasien.value.nama_lengkap} 🎉`);
-    
     showModal.value = false;
     newPasien.value = { nama_lengkap: '', nisn: '', kelas: '', no_hp: '' };
-    
-    fetchPasien(); // Refresh tabel setelah sukses
+    fetchPasien(); 
 
   } catch (error) {
     console.error(error);
@@ -166,138 +178,44 @@ const savePasien = async () => {
 </script>
 
 <style scoped>
-.pasien-container-premium {
-  display: flex;
-  flex-direction: column;
-  gap: 25px;
-}
+.pasien-container-premium { display: flex; flex-direction: column; gap: 25px; }
 
-/* Header Area */
-.pasien-header-premium {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: white;
-  padding: 24px 30px;
-  border-radius: 16px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.01);
-}
+.pasien-header-premium { display: flex; justify-content: space-between; align-items: center; background: white; padding: 24px 30px; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.01); }
 .header-title-zone h2 { margin: 0; font-size: 24px; color: #0f172a; font-weight: 700; text-align: left; }
 .header-title-zone p { margin: 5px 0 0 0; color: #64748b; font-size: 14px; text-align: left; }
 
-.btn-add-premium {
-  background: #059669;
-  color: white;
-  border: none;
-  padding: 12px 20px;
-  border-radius: 10px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: all 0.2s;
-  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.2);
-}
+.btn-add-premium { background: #059669; color: white; border: none; padding: 12px 20px; border-radius: 10px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s; box-shadow: 0 4px 12px rgba(5, 150, 105, 0.2); }
 .btn-add-premium:hover { background: #047857; transform: translateY(-2px); }
 
-/* Card Wrapper Pembungkus Tabel */
-.table-card-premium {
-  background: white;
-  border-radius: 20px;
-  padding: 15px 25px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.02);
-}
-
+.table-card-premium { background: white; border-radius: 20px; padding: 15px 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.02); }
 .table-responsive { overflow-x: auto; }
 
-/* Desain Tabel Ala Admin Panel Premium */
-.pasien-table-premium {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
-}
-.pasien-table-premium th {
-  padding: 16px;
-  border-bottom: 2px solid #f1f5f9;
-  color: #64748b;
-  font-weight: 600;
-  font-size: 13px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-.pasien-table-premium td {
-  padding: 16px;
-  border-bottom: 1px solid #f1f5f9;
-  font-size: 14px;
-  color: #334155;
-  vertical-align: middle;
-}
-.pasien-table-premium tr:hover td {
-  background-color: #f8fafc;
-}
+.pasien-table-premium { width: 100%; border-collapse: collapse; text-align: left; }
+.pasien-table-premium th { padding: 16px; border-bottom: 2px solid #f1f5f9; color: #64748b; font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; }
+.pasien-table-premium td { padding: 16px; border-bottom: 1px solid #f1f5f9; font-size: 14px; color: #334155; vertical-align: middle; }
+.pasien-table-premium tr:hover td { background-color: #f8fafc; }
 
-/* Kolom Spesifik */
 .td-nisn { font-family: monospace; font-size: 15px !important; color: #64748b !important; }
 .td-nama { display: flex; align-items: center; gap: 12px; }
+.avatar-sm { width: 32px; height: 32px; background: #e2f5ea; color: #059669; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 12px; font-weight: bold; }
+.badge-kelas { background: #f1f5f9; color: #475569; padding: 4px 10px; border-radius: 6px; font-weight: 600; font-size: 13px; }
 
-.avatar-sm {
-  width: 32px;
-  height: 32px;
-  background: #e2f5ea;
-  color: #059669;
-  border-radius: 50%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 12px;
-  font-weight: bold;
-}
-
-.badge-kelas {
-  background: #f1f5f9;
-  color: #475569;
-  padding: 4px 10px;
-  border-radius: 6px;
-  font-weight: 600;
-  font-size: 13px;
-}
-
-/* Tombol Aksi */
 .action-buttons-premium { display: flex; gap: 8px; justify-content: flex-start; }
-.btn-action {
-  border: none;
-  padding: 6px 12px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-  transition: all 0.2s;
-}
+.btn-action { border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s; }
 .btn-edit-premium { background: #eff6ff; color: #2563eb; }
 .btn-edit-premium:hover { background: #dbeafe; }
 .btn-delete-premium { background: #fff5f5; color: #e11d48; }
 .btn-delete-premium:hover { background: #ffe4e6; }
 
-/* OVERLAY POP-UP MODAL */
-.modal-overlay-premium {
-  position: fixed;
-  top: 0; left: 0; width: 100%; height: 100%;
-  background: rgba(15, 23, 42, 0.4); 
-  backdrop-filter: blur(4px); 
-  display: flex; justify-content: center; align-items: center;
-  z-index: 1000;
-}
-.modal-content-premium {
-  background: white; width: 100%; max-width: 500px;
-  padding: 30px; border-radius: 20px;
-  box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
-  position: relative; box-sizing: border-box;
-}
-.modal-header-premium {
-  display: flex; justify-content: space-between; align-items: flex-start;
-  margin-bottom: 25px; border-bottom: 1px solid #f1f5f9; padding-bottom: 15px;
-}
+/* 🔥 GAYA BARU BUAT DATA YANG DIGEMBOK (KHUSUS SISWA) 🔥 */
+.locked-data-cell { text-align: center; padding: 60px 20px !important; color: #64748b; background: #f8fafc !important; }
+.lock-icon { font-size: 45px; margin-bottom: 15px; opacity: 0.8; }
+.locked-data-cell h3 { margin: 0 0 8px 0; color: #334155; font-size: 18px; }
+.locked-data-cell p { margin: 0 auto; max-width: 400px; font-size: 14px; line-height: 1.6; }
+
+.modal-overlay-premium { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(4px); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+.modal-content-premium { background: white; width: 100%; max-width: 500px; padding: 30px; border-radius: 20px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04); position: relative; box-sizing: border-box; }
+.modal-header-premium { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 25px; border-bottom: 1px solid #f1f5f9; padding-bottom: 15px; }
 .modal-title-group h3 { margin: 0; color: #0f172a; font-size: 20px; font-weight: 700; text-align: left; }
 .modal-title-group p { margin: 4px 0 0 0; color: #64748b; font-size: 13px; text-align: left; }
 .close-x-premium { background: none; border: none; font-size: 24px; cursor: pointer; color: #94a3b8; }
@@ -305,10 +223,7 @@ const savePasien = async () => {
 .modal-form-premium { display: flex; flex-direction: column; gap: 18px; }
 .form-group-premium { display: flex; flex-direction: column; gap: 6px; text-align: left; width: 100%; }
 .form-group-premium label { font-size: 13px; font-weight: 600; color: #475569; }
-.form-group-premium input {
-  padding: 11px 14px; border: 1px solid #cbd5e1; border-radius: 8px;
-  outline: none; width: 100%; box-sizing: border-box; transition: all 0.2s;
-}
+.form-group-premium input { padding: 11px 14px; border: 1px solid #cbd5e1; border-radius: 8px; outline: none; width: 100%; box-sizing: border-box; transition: all 0.2s; }
 .form-group-premium input:focus { border-color: #059669; box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15); }
 .form-row-premium { display: grid; grid-template-columns: 1fr; gap: 15px; width: 100%; box-sizing: border-box; }
 

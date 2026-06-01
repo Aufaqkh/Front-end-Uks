@@ -17,19 +17,17 @@
             <tr>
               <th>Nama Obat</th>
               <th>Stok Tersedia</th>
-              <th>Harga Per Pcs</th>
               <th>Kategori</th>
-              <th class="text-center">Aksi</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="loading">
-              <td colspan="5" style="text-align: center; padding: 30px; color: #64748b;">
+              <td colspan="4" style="text-align: center; padding: 30px; color: #64748b;">
                 Memuat data stok obat... ⏳
               </td>
             </tr>
             <tr v-else-if="obatList.length === 0">
-              <td colspan="5" style="text-align: center; padding: 30px; color: #64748b;">
+              <td colspan="4" style="text-align: center; padding: 30px; color: #64748b;">
                 Belum ada data obat di inventaris bray.
               </td>
             </tr>
@@ -39,7 +37,7 @@
                   {{ obat.stok <= 10 ? '🧪' : '💊' }}
                 </div>
                 <div>
-                  <strong>{{ obat.nama_obat }}</strong>
+                  <strong>{{ obat.nama }}</strong>
                   <p class="sub-text">ID Obat: #{{ obat.id }}</p>
                 </div>
               </td>
@@ -48,13 +46,8 @@
                   {{ obat.stok }} Pcs
                 </span>
               </td>
-              <td class="td-harga">Rp {{ formatHarga(obat.harga) }}</td>
               <td><span class="badge-kategori">{{ obat.kategori }}</span></td>
               <td>
-                <div class="action-buttons-premium">
-                  <button class="btn-action btn-edit-premium">✏️ Edit</button>
-                  <button class="btn-action btn-delete-premium">🗑️ Hapus</button>
-                </div>
               </td>
             </tr>
           </tbody>
@@ -78,15 +71,9 @@
             <input v-model="newObat.nama_obat" type="text" placeholder="Contoh: Amoxicillin 500mg" required>
           </div>
           
-          <div class="form-row-premium">
-            <div class="form-group-premium">
-              <label>Jumlah Stok</label>
-              <input v-model.number="newObat.stok" type="number" placeholder="Contoh: 50" required>
-            </div>
-            <div class="form-group-premium">
-              <label>Harga Satuan (Rp)</label>
-              <input v-model.number="newObat.harga" type="number" placeholder="Contoh: 4000" required>
-            </div>
+          <div class="form-group-premium">
+            <label>Jumlah Stok</label>
+            <input v-model.number="newObat.stok" type="number" placeholder="Contoh: 50" required>
           </div>
 
           <div class="form-group-premium">
@@ -124,16 +111,17 @@ const obatList = ref([]);
 const newObat = ref({
   nama_obat: '',
   stok: null,
-  harga: null,
   kategori: 'Obat Demam / Pusing'
 });
 
 const fetchObat = async () => {
   loading.value = true;
   try {
-    // 🔥 1. INI UDAH GUA TAMBAHIN 's' LAGI JADI /obats
-    const response = await api.get('/obats'); 
-    console.log("Cek data obat:", response.data);
+    const token = localStorage.getItem('token') || localStorage.getItem('auth_token'); 
+    
+    const response = await api.get('/obats', {
+      headers: { Authorization: `Bearer ${token}` }
+    }); 
     
     if (response.data && response.data.data) {
       obatList.value = response.data.data;
@@ -154,37 +142,34 @@ onMounted(() => {
 const saveObat = async () => {
   submitting.value = true;
   try {
-    // 🔥 2. INI JUGA UDAH GUA TAMBAHIN 's' LAGI JADI /obats
+    const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
+
     await api.post('/obats', {
-      nama_obat: newObat.value.nama_obat,
+      nama_obat: newObat.value.nama_obat, 
       stok: newObat.value.stok,
-      harga: newObat.value.harga,
       kategori: newObat.value.kategori
+    }, {
+      headers: { Authorization: `Bearer ${token}` } 
     });
 
     alert(`Berhasil menyimpan obat: ${newObat.value.nama_obat} 🎉`);
     
     showModal.value = false;
-    newObat.value = { nama_obat: '', stok: null, harga: null, kategori: 'Obat Demam / Pusing' };
+    newObat.value = { nama_obat: '', stok: null, kategori: 'Obat Demam / Pusing' };
     
-    fetchObat();
+    fetchObat(); 
 
   } catch (error) {
     console.error(error);
-    alert(error.response?.data?.message || 'Gagal menyimpan obat! Periksa koneksi backend atau struktur database bray.');
+    alert('Gagal menyimpan obat! Periksa koneksi backend bre.');
   } finally {
     submitting.value = false;
   }
 };
-
-const formatHarga = (value) => {
-  if (!value) return '0';
-  return value.toLocaleString('id-ID');
-};
 </script>
 
 <style scoped>
-/* CSS LAMA GAK ADA YANG BERUBAH */
+/* CSS LAMA MASIH SAMA */
 .obat-container-premium { display: flex; flex-direction: column; gap: 25px; }
 .obat-header-premium { display: flex; justify-content: space-between; align-items: center; background: white; padding: 24px 30px; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.01); }
 .header-title-zone h2 { margin: 0; font-size: 24px; color: #0f172a; font-weight: 700; text-align: left; }
@@ -203,7 +188,6 @@ const formatHarga = (value) => {
 
 .td-nama-obat { display: flex; align-items: center; gap: 14px; text-align: left; }
 .sub-text { margin: 2px 0 0 0; font-size: 12px; color: #94a3b8; }
-.td-harga { font-weight: 600; color: #0f172a; }
 
 .avatar-obat-sm { width: 36px; height: 36px; border-radius: 10px; display: flex; justify-content: center; align-items: center; font-size: 16px; }
 .status-aman { background: #e2f5ea; }
@@ -233,7 +217,6 @@ const formatHarga = (value) => {
 .form-group-premium label { font-size: 13px; font-weight: 600; color: #475569; }
 .form-group-premium input, .select-premium { padding: 11px 14px; border: 1px solid #cbd5e1; border-radius: 8px; outline: none; width: 100%; box-sizing: border-box; transition: all 0.2s; background: white; }
 .form-group-premium input:focus, .select-premium:focus { border-color: #059669; box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15); }
-.form-row-premium { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; width: 100%; box-sizing: border-box; }
 
 .modal-actions-premium { display: flex; justify-content: flex-end; gap: 12px; margin-top: 15px; }
 .btn-cancel-premium { background: #f1f5f9; color: #475569; border: none; padding: 11px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; }

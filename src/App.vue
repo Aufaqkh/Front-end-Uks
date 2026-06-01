@@ -12,13 +12,6 @@
         
         <router-link to="/obat" class="menu-item">Stok Obat</router-link>
       </nav>
-      <div class="user-profile">
-        <div class="avatar">A</div>
-        <div class="user-info">
-          <p class="name">Petugas Aufa</p>
-          <p class="role">Admin UKS</p>
-        </div>
-      </div>
     </aside>
 
     <main class="main-content" :class="{ 'full-width': isAuthPage }">

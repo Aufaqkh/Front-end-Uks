@@ -6,7 +6,11 @@
     </div>
     
     <div class="header-profile-zone">
-      <div class="notification-bell" @click="toggleNotification">
+      <div 
+        v-if="userData.role === 'admin' || userData.role === 'petugas'" 
+        class="notification-bell" 
+        @click="toggleNotification"
+      >
         <span class="bell-icon">🔔</span>
         <span class="bell-badge">2</span>
 
@@ -36,7 +40,7 @@
         </div>
         <div class="profile-info-text">
           <h4>{{ userData.name }}</h4>
-          <p>{{ userData.role || 'Petugas UKS' }}</p>
+          <p>{{ formatRole(userData.role) }}</p>
         </div>
       </div>
 
@@ -52,7 +56,7 @@ import api from '../../API/api.js';
 
 const router = useRouter();
 const showNotification = ref(false);
-const userData = ref({ name: 'User', role: 'Petugas UKS' });
+const userData = ref({ name: 'User', role: 'petugas' });
 
 onMounted(() => {
   const user = JSON.parse(localStorage.getItem('user'));
@@ -63,6 +67,11 @@ onMounted(() => {
 
 const toggleNotification = () => {
   showNotification.value = !showNotification.value;
+};
+
+const formatRole = (role) => {
+  if (!role) return 'Petugas UKS';
+  return role.charAt(0).toUpperCase() + role.slice(1);
 };
 
 const handleLogout = async () => {
@@ -80,7 +89,6 @@ const handleLogout = async () => {
 </script>
 
 <style scoped>
-/* CSS tetap sama kayak sebelumnya biar tampilan premium lu nggak berubah */
 .dash-header-premium { display: flex; justify-content: space-between; align-items: center; background: white; padding: 18px 30px; border-radius: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.02); width: 100%; box-sizing: border-box; position: relative; z-index: 99999 !important; }
 .header-text-zone h1 { margin: 0; font-size: 24px; color: #0f172a; font-weight: 700; text-align: left; }
 .header-text-zone p { margin: 4px 0 0 0; color: #64748b; font-size: 14px; text-align: left; }
