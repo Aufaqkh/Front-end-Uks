@@ -67,9 +67,31 @@
     </div>
 
     <div v-else class="student-view-card">
-      <div class="student-icon">🚑</div>
-      <h3>Butuh Bantuan Medis?</h3>
-      <p>Jika kamu merasa kurang enak badan atau butuh obat, silakan laporkan keluhanmu dengan menekan tombol <strong>+ Tambah Kunjungan</strong> di atas ya!</p>
+      <template v-if="!kunjunganAktif">
+        <div class="student-icon">🚑</div>
+        <h3>Butuh Bantuan Medis?</h3>
+        <p>Jika kamu merasa kurang enak badan atau butuh obat, silakan laporkan keluhanmu dengan menekan tombol <strong>+ Tambah Kunjungan</strong> di atas ya!</p>
+      </template>
+
+      <template v-else-if="kunjunganAktif.status_jemput === 'jemput'">
+        <div class="student-icon pulse-kuning">🚨</div>
+        <h3 style="color: #b91c1c;">Laporan Jemputan Terkirim!</h3>
+        <p>Laporanmu sudah masuk ke sistem UKS. <strong>Tetap di posisimu sekarang bray!</strong> Petugas medis sedang memeriksa laporanmu.</p>
+        <div class="lokasi-badge-info">📍 Posisi Kamu: <strong>{{ kunjunganAktif.lokasi_jemput || 'Tidak diisi' }}</strong></div>
+      </template>
+
+      <template v-else-if="kunjunganAktif.status_jemput === 'disetujui'">
+        <div class="student-icon pulse-hijau">🚑💨</div>
+        <h3 style="color: #059669;">Petugas Sedang OTW Menjemput!</h3>
+        <p><b>Kabar baik bre!</b> Petugas UKS sudah mengonfirmasi laporanmu dan saat ini sedang meluncur ke lokasimu. Siap-siap ya!</p>
+        <div class="lokasi-badge-info sukses">📍 Petugas OTW ke: <strong>{{ kunjunganAktif.lokasi_jemput }}</strong></div>
+      </template>
+
+      <template v-else-if="kunjunganAktif.status_jemput === 'datang'">
+        <div class="student-icon">🚶</div>
+        <h3 style="color: #0f172a;">Laporan Diterima</h3>
+        <p>Laporan keluhanmu sudah masuk. Silakan langsung jalan ke ruang UKS ya bre, petugas sudah siap melayani.</p>
+      </template>
     </div>
 
     <div v-if="tampilModal" class="modal-overlay">
@@ -89,8 +111,8 @@
             <input v-model="formData.umur" type="number" placeholder="Contoh: 16" required />
           </div>
           <div class="input-group">
-            <label>Keluhan & Lokasi Kamu Sekarang</label>
-            <textarea v-model="formData.keluhan" placeholder="Contoh: Pusing berat (Saya sedang di Kelas XI RPL 2)..." rows="2" required></textarea>
+            <label>Keluhan </label>
+            <textarea v-model="formData.keluhan" placeholder="Contoh: Pusing berat..." rows="2" required></textarea>
           </div>
           <div class="input-group" v-if="userRole !== 'siswa'">
             <label>Status Penanganan</label>
@@ -107,6 +129,12 @@
               <option value="jemput">Ya, tolong jemput saya ke lokasi 🚑</option>
             </select>
           </div>
+          
+          <div class="input-group" v-if="formData.status_jemput === 'jemput'">
+            <label>Posisi / Lokasi Jemput</label>
+            <input v-model="formData.lokasi_jemput" type="text" placeholder="Contoh: Kelas XI RPL 2, Lapangan..." required />
+          </div>
+
           <div class="modal-actions">
             <button type="button" @click="tampilModal = false" class="btn-batal">Batal</button>
             <button type="submit" class="btn-simpan">Kirim Laporan</button>
@@ -132,7 +160,7 @@
             <span class="detail-value">{{ selectedKunjungan.umur }} Tahun</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">Keluhan & Lokasi:</span>
+            <span class="detail-label">Keluhan:</span>
             <span class="detail-value">{{ selectedKunjungan.keluhan }}</span>
           </div>
           <div class="detail-item">
@@ -147,9 +175,13 @@
             <span class="detail-label">Status Penjemputan:</span>
             <span class="detail-value">
               <span class="badge-jemput" :class="selectedKunjungan.status_jemput">
-                {{ selectedKunjungan.status_jemput === 'jemput' ? '🚨 Siswa minta dijemput ke lokasi' : (selectedKunjungan.status_jemput === 'disetujui' ? '✅ Petugas sedang OTW menjemput' : '🚶 Datang sendiri ke UKS') }}
+                {{ selectedKunjungan.status_jemput === 'jemput' ? '🚨 Siswa minta dijemput' : (selectedKunjungan.status_jemput === 'disetujui' ? '✅ Petugas sedang OTW menjemput' : '🚶 Datang sendiri ke UKS') }}
               </span>
             </span>
+          </div>
+          <div class="detail-item" v-if="selectedKunjungan.status_jemput !== 'datang'">
+            <span class="detail-label">Lokasi Jemput:</span>
+            <span class="detail-value">📍 <strong>{{ selectedKunjungan.lokasi_jemput || 'Tidak menyertakan lokasi' }}</strong></span>
           </div>
         </div>
 
@@ -180,7 +212,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue'; // 🔥 Import onUnmounted
 import api from '../API/api.js';
 
 const loading = ref(false);
@@ -190,20 +222,40 @@ const currentPage = ref(1);
 const lastPage = ref(1);
 
 const tampilModal = ref(false);
-const formData = ref({ nama_pasien: '', umur: '', keluhan: '', status: 'menunggu', status_jemput: 'datang' });
+const formData = ref({ nama_pasien: '', umur: '', keluhan: '', status: 'menunggu', status_jemput: 'datang', lokasi_jemput: '' });
 const tampilModalDetail = ref(false);
 const selectedKunjungan = ref({});
 
+// 🔥 TRACKING STATUS KHUSUS SISWA & TIMER RADAR 🔥
+const kunjunganAktif = ref(null);
+let radarTimer = null;
+
 const fetchKunjungan = async (page = 1) => {
-  if (userRole.value === 'siswa') return;
+  // 🔥 HAPUS LIMITASI SISWA: if (userRole.value === 'siswa') return;
   loading.value = true;
   try {
     const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
     const response = await api.get(`/kunjungan?page=${page}`, { headers: { Authorization: `Bearer ${token}` } });
+    
     kunjunganList.value = response.data.data || response.data;
     if (response.data.current_page) {
       currentPage.value = response.data.current_page;
       lastPage.value = response.data.last_page;
+    }
+
+    // 🔥 LOGIKA MESIN RADAR & NOTIF ALERT UNTUK SISWA 🔥
+    if (userRole.value === 'siswa' && kunjunganList.value.length > 0) {
+      const dataTerbaru = kunjunganList.value[0]; // Ambil laporan paling baru dibikin siswa
+      
+      if (dataTerbaru.status !== 'selesai') {
+        // Cek kalo pas timer muter, statusnya berubah dari 'jemput' ke 'disetujui'
+        if (kunjunganAktif.value && kunjunganAktif.value.status_jemput === 'jemput' && dataTerbaru.status_jemput === 'disetujui') {
+          alert('🚑 NOTIFIKASI UKS DIGITAL:\n\nTahan bre! Petugas UKS sudah mengonfirmasi laporanmu dan sekarang sedang OTW meluncur menjemputmu! 💨');
+        }
+        kunjunganAktif.value = dataTerbaru; // Update kartu tampilan
+      } else {
+        kunjunganAktif.value = null; // Kalo status udah 'selesai', balikin ke tampilan awal
+      }
     }
   } catch (error) { console.error('Gagal:', error); } finally { loading.value = false; }
 };
@@ -212,6 +264,18 @@ onMounted(() => {
   const user = JSON.parse(localStorage.getItem('user'));
   if (user) { userRole.value = user.role; }
   fetchKunjungan();
+
+  // 🔥 NYALAIN RADAR TIAP 10 DETIK (KHUSUS SISWA) 🔥
+  if (userRole.value === 'siswa') {
+    radarTimer = setInterval(() => {
+      fetchKunjungan();
+    }, 10000); 
+  }
+});
+
+// 🔥 BERSIHIN TIMER PAS PINDAH MENU BIAR GAK BERAT 🔥
+onUnmounted(() => {
+  if (radarTimer) clearInterval(radarTimer);
 });
 
 const simpanData = async () => {
@@ -219,8 +283,10 @@ const simpanData = async () => {
     const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
     await api.post('/kunjungan', formData.value, { headers: { Authorization: `Bearer ${token}` } });
     alert('Mantap bre! Laporan terkirim.');
-    if (userRole.value !== 'siswa') { await fetchKunjungan(1); }
-    formData.value = { nama_pasien: '', umur: '', keluhan: '', status: 'menunggu', status_jemput: 'datang' };
+    
+    await fetchKunjungan(1); // Langsung refresh data biar UI update
+    
+    formData.value = { nama_pasien: '', umur: '', keluhan: '', status: 'menunggu', status_jemput: 'datang', lokasi_jemput: '' };
     tampilModal.value = false;
   } catch (error) { console.error('Gagal:', error); alert('Cek koneksi.'); }
 };
@@ -237,7 +303,6 @@ const ubahStatus = async (id, statusBaru) => {
   } catch (error) { console.error(error); alert('Gagal ngubah status.'); }
 };
 
-// 🔥 INI JALUR SAKTI YANG BARU (PAKE POST) 🔥
 const accPenjemputan = async (kunjungan) => {
   try {
     const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
@@ -330,4 +395,21 @@ const accPenjemputan = async (kunjungan) => {
 
 .btn-acc-action { width: 100%; padding: 12px 0; border: none; border-radius: 8px; background: #dc2626; color: white; font-weight: bold; font-size: 14px; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 10px rgba(220, 38, 38, 0.2); }
 .btn-acc-action:hover { background: #b91c1c; transform: translateY(-1px); }
+
+/* 🔥 TAMBAHAN CSS ANIMASI RADAR SISWA 🔥 */
+.lokasi-badge-info { background: #fee2e2; color: #b91c1c; padding: 10px 15px; border-radius: 8px; font-weight: 600; margin-top: 10px; display: inline-block; font-size: 14px;}
+.lokasi-badge-info.sukses { background: #dcfce7; color: #15803d; }
+
+.pulse-kuning { animation: pulseKuningAnim 1.5s infinite; background: #fef08a !important; border-radius: 50%; width: 90px; height: 90px; display: flex; justify-content: center; align-items: center;}
+@keyframes pulseKuningAnim {
+  0% { box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.5); }
+  70% { box-shadow: 0 0 0 15px rgba(234, 179, 8, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(234, 179, 8, 0); }
+}
+
+.pulse-hijau { animation: pulseHijauAnim 1.5s infinite; background: #bbf7d0 !important; border-radius: 50%; width: 90px; height: 90px; display: flex; justify-content: center; align-items: center;}
+@keyframes pulseHijauAnim {
+  0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5); }
+  70% { box-shadow: 0 0 0 15px rgba(34, 197, 94, 0); }
+}
 </style>

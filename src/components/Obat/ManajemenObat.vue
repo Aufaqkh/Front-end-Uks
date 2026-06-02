@@ -78,6 +78,7 @@
             <label>Kategori / Kegunaan Obat</label>
             <select v-model="newObat.kategori" class="select-premium">
               <option value="Obat Demam / Pusing">Obat Demam / Pusing</option>
+              <option value="Obat batuk / pilek">Obat batuk / pilek</option>
               <option value="Obat Maag / Lambung">Obat Maag / Lambung</option>
               <option value="Obat Luar / Luka">Obat Luar / Luka</option>
               <option value="Suplemen / Vitamin">Suplemen / Vitamin</option>
